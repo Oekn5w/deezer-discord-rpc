@@ -17,19 +17,25 @@ let currentSettings: CurrentSettings;
 export async function load(app: Electron.App) {
   const width = parseInt(await Config.get(app, 'window_width')) || 1920;
   const height = parseInt(await Config.get(app, 'window_height')) || 1080;
+  const posX = parseInt(await Config.get(app, 'window_posX')) || 0;
+  const posY = parseInt(await Config.get(app, 'window_posY')) || 0;
   win = new BrowserWindow({
     width, height,
     minimizable: true,
     maximizable: true,
     closable: true,
     resizable: true,
-    center: true,
     title: 'Deezer Discord RPC',
     icon: join(__dirname, '..', 'img', 'app.png'),
     webPreferences: {
       preload: resolve(__dirname, '..', 'preload.js')
     }
   });
+  if (posX === 0 && posY === 0) {
+    win.center();
+  } else {
+    win.setPosition(posX, posY);
+  }
   if (width === 1920 && height === 1080) win.maximize();
   win.focus();
   win.show();
@@ -55,6 +61,12 @@ export async function load(app: Electron.App) {
     const [w, h] = win.getSize();
     Config.set(app, 'window_width', w);
     Config.set(app, 'window_height', h);
+  });
+
+  win.on('moved', () => {
+    const [x, y] = win.getPosition();
+    Config.set(app, 'window_posX', x);
+    Config.set(app, 'window_posY', y);
   });
 
   win.webContents.setWindowOpenHandler((details) => {

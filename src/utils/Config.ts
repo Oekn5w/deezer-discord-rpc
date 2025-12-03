@@ -8,7 +8,7 @@ export async function set(app: Electron.App, key: string, value: unknown) {
   const data = JSON.parse(readFileSync(path, 'utf-8'));;
   data[key] = value;
   try {
-    writeFileSync(path, JSON.stringify(data));
+    writeFileSync(path, JSON.stringify(data, Object.keys(data).sort(), 2));
   } catch (e) {
     dialog.showMessageBox(null, {
       type: 'error',
