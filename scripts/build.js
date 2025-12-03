@@ -23,7 +23,7 @@ const config = {
     icon: join(__dirname, '..', 'src', 'img', 'app.icns'),
   },
   win: {
-    target: 'nsis',
+    target: 'portable',
     icon: join(__dirname, '..', 'src', 'img', 'app.ico'),
   },
   linux: {
