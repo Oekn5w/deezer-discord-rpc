@@ -21,11 +21,11 @@ export async function set(app: Electron.App, key: string, value: unknown) {
   }
 }
 
-export function get<T>(app: Electron.App, key?: string): T {
+export function get<T>(app: Electron.App, key?: string, fallback?: T): T {
   const path = getConfigPath(app);
   if (!existsSync(path)) writeFileSync(path, '{}');
   const data = JSON.parse(readFileSync(path, 'utf-8'));
-  return key ? data[key] : data;
+  return key ? ((key in data) ? data[key] : fallback) : data;
 }
 
 function getConfigPath(app: Electron.App) {

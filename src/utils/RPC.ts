@@ -32,7 +32,9 @@ export function connect() {
 }
 
 export async function disconnect() {
-  log('RPC', 'Disconnecting...');
-  await client.user.clearActivity(process.pid);
-  await client.destroy().then(() => log('RPC', 'Disconnected'));
+  if(client.isConnected) {
+    log('RPC', 'Disconnecting...');
+    await client.user.clearActivity(process.pid);
+    await client.destroy().then(() => log('RPC', 'Disconnected'));
+  }
 }

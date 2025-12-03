@@ -19,6 +19,7 @@
 * Hides the activity if no song is playing
 * Includes an ad-blocker, so it can block Deezer ads, Google Analytics, Sentry requests...
 * Supports songs, radios, personal songs (MP3s), podcasts
+* Can run a WebSocketServer to control playback from other applications 
 
 <table>
 <tr>
@@ -66,6 +67,14 @@ brew install --cask cutetenshii/stuff/deezer-discord-rpc
 3. To build the app for release, run: `bun run build`
 4. If you want to run it in development mode, run: `bun run start`
 
+## Websocket Server
+
+As Deezer's API is basically non-existent, this client can also run a websocket server for rudimentary playback control for peripherals.
+
+The Websocket server is running on port `16890` <ins>without authentication</ins>. It is possible to bind it to the localhost interface, so that only services on the machine can access it (or SSH tunnels).
+
+See [WebsocketServer](./WebsocketServer.md) for the implemented functionality.
+
 ## Tray Menu Options
 
 - **Status name:** The status that will show on Discord. For comparison, Spotify integration uses the artists.<br />
@@ -74,6 +83,9 @@ brew install --cask cutetenshii/stuff/deezer-discord-rpc
 - **Tooltip text:** The text that will show when you hover the Deezer tray icon.<br />
   ![](.github/screenshots/tooltip_text.png)<br />
   ![](.github/screenshots/tooltip_text_options.png)
+- **Websocket Server:** Websocket Server settings
+  - **Run Websocket Server** Start/Stop Websocket Server on port `16890`
+  - **Localhost only** Allow only connections from this PC via the localhost interface (local services and e.g. SSH tunnels)
 - **Don't close to tray:** when closing the app, should it be completely closed (enabled) or kept running in the background? (default, disabled)
 
 ## Star History

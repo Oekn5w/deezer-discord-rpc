@@ -26,7 +26,7 @@ export async function setActivity({
       tray.setToolTip(`${trackTitle} - ${trackArtists}`);
       break;
   }
-  if (!client) return;
+  if (!client || !client.isConnected) return;
   if (!playing) return await client.user.clearActivity();
 
   const getTrackLink = () => {

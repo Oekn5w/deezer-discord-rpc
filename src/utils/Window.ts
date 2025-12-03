@@ -3,13 +3,16 @@ import { join, resolve } from 'path';
 import loadAdBlock from './AdBlock';
 import * as Config from './Config';
 import * as RPC from './RPC';
+import * as WSS from './WSS';
 import { log } from './Log';
 import { runJs } from '../functions';
 import { BrowserWindow, ipcMain, shell, nativeImage, session } from 'electron';
 import { setActivity } from './Activity';
+import * as os from 'os';
 
 export let win: BrowserWindow;
 let currentTrack: CurrentTrack;
+let currentSettings: CurrentSettings;
 
 export async function load(app: Electron.App) {
   const width = parseInt(await Config.get(app, 'window_width')) || 1920;
@@ -119,12 +122,17 @@ export async function load(app: Electron.App) {
     }, 50);
   });
 
-  runJs(`document.querySelector('[data-testid="miniplayer_container"] .slider').addEventListener('click', () => ipcRenderer.send('update_activity', true))
+  runJs(`document.querySelector('[data-testid="miniplayer_container"] .slider').addEventListener('click', () => ipcRenderer.send('update_activity', true));
          const trackObserver = new MutationObserver(() => ipcRenderer.send('update_activity', false));
          trackObserver.observe(document.querySelector('.marquee-content > [data-testid="item_title"]'), { childList: true, subtree: true, characterData: true });
          const playObserver = new MutationObserver(() => ipcRenderer.send('update_activity', false));
          playObserver.observe(document.querySelector('.chakra-button__group > button[data-testid^="play_button_"]'), { attributes: true, childList: false, subtree: false });
-         document.querySelector('.chakra-button__group > button[data-testid^="play_button_"]').addEventListener('click', () => ipcRenderer.send('update_activity', false));`);
+         document.querySelector('.chakra-button__group > button[data-testid^="play_button_"]').addEventListener('click', () => ipcRenderer.send('update_activity', false));
+         const muteObserver = new MutationObserver(() => ipcRenderer.send('update_activity', false));
+         muteObserver.observe(document.querySelector('.chakra-button__group > button[data-testid^="volume_button_"]'), { attributes: true, childList: false, subtree: false });
+         document.querySelector('.chakra-button__group > button[data-testid^="volume_button_"]').addEventListener('click', () => ipcRenderer.send('update_activity', false));
+         document.querySelector('[data-testid="volume_menu"] .slider').addEventListener('click', () => ipcRenderer.send('update_activity', false));
+         `);
   runJs(`const chakraStack = document.querySelector('#dzr-app > .naboo > div[class*="css-"] > div[class*="css-"] a.chakra-link');
          const navContainer = document.createElement('div');
          navContainer.style.display = 'flex';
@@ -150,6 +158,9 @@ export async function showWindow() {
 }
 
 export async function setThumbarButtons() {
+  if (os.platform() !== 'win32') {
+    return;
+  }
   const hasPreviousSong = await runJs('dzPlayer && !!dzPlayer.getPrevSong()');
   const hasNextSong = await runJs('dzPlayer && !!dzPlayer.getNextSong()');
   const isPlaying = await runJs('dzPlayer && dzPlayer.isPlaying()');
@@ -178,7 +189,8 @@ const UpdateReason = {
   MUSIC_PAUSED: 'music got paused',
   MUSIC_PLAYED: 'music got played',
   MUSIC_TIME_CHANGED: 'current song time changed',
-  MUSIC_NOT_RIGHT_TIME: 'song time wasn\'t the right one'
+  MUSIC_NOT_RIGHT_TIME: 'song time wasn\'t the right one',
+  VOLUME_CHANGED: 'volume state changed',
 };
 
 async function updateActivity(app: Electron.App, currentTimeChanged?: boolean) {
@@ -211,9 +223,11 @@ async function updateActivity(app: Electron.App, currentTimeChanged?: boolean) {
       if (mediaType === 'song') coverType = 'cover';
       if (mediaType === 'episode') coverType = 'talk';
       const coverUrl = \`https://e-cdns-images.dzcdn.net/images/\${coverType}/\${cover}/256x256-000000-80-0-0.jpg\`;
+      const muted = dzPlayer.isMuted();
+      const volume = dzPlayer.getVolume();
       return JSON.stringify({
         albumId, trackId, mediaType, playerType, trackName, albumName, artists, playing, songTime, timeLeft, coverUrl,
-        isLivestreamRadio, firstArtistId
+        isLivestreamRadio, firstArtistId, muted, volume
       });
     })()`;
   runJs(code).then(async (r) => {
@@ -222,15 +236,20 @@ async function updateActivity(app: Electron.App, currentTimeChanged?: boolean) {
     if (currentTrack && !currentTrack?.songTime) currentTrack.songTime = realSongTime;
     if (
       currentTrack?.trackTitle !== result.trackName || currentTrack?.playing !== result.playing || currentTimeChanged === true ||
-      currentTrack?.songTime !== realSongTime
+      currentTrack?.songTime !== realSongTime || currentSettings?.muted !== result.muted || currentSettings?.volume !== result.volume
     ) {
       let reason = '';
+      let updateWSSOnly = false;
       if (currentTrack?.trackTitle !== result.trackName)
         reason = UpdateReason.MUSIC_CHANGED;
       else if (currentTrack?.playing !== result.playing)
         reason = result.playing ? UpdateReason.MUSIC_PLAYED : UpdateReason.MUSIC_PAUSED;
       else if (currentTimeChanged && currentTimeChanged === true) reason = UpdateReason.MUSIC_TIME_CHANGED;
       else if (currentTrack?.songTime !== realSongTime) reason = UpdateReason.MUSIC_NOT_RIGHT_TIME;
+      else if (currentSettings?.muted !== result.muted || currentSettings?.volume !== result.volume) {
+        reason = UpdateReason.VOLUME_CHANGED;
+        updateWSSOnly = true;
+      }
       log('Activity', 'Updating because', reason);
       // @ts-expect-error wrong type
       currentTrack = {
@@ -242,16 +261,41 @@ async function updateActivity(app: Electron.App, currentTimeChanged?: boolean) {
         playing: result.playing,
       };
 
-      await setActivity({
-        client,
-        albumId: result.albumId,
-        firstArtistId: result.firstArtistId,
-        timeLeft: result.timeLeft,
-        app,
-        ...currentTrack,
-        type: result.mediaType,
-        songTime: realSongTime
-      }).then(() => log('Activity', 'Updated'));
+      currentSettings = {
+        muted: result.muted,
+        volume: result.volume,
+      };
+
+      const startTimeDate = new Date(Date.now() - realSongTime + result.timeLeft);
+      const currentWSSState = {
+        trackId: result.trackId,
+        trackTitle: result.trackName,
+        trackArtists: result.playerType === 'mod' && !result.artists ? 'Unknown' : result.artists || result.playerType.replace(result.playerType[0], result.playerType[0].toUpperCase()),
+        albumCover: result.coverUrl,
+        albumTitle: result.albumName || result.trackName,
+        playing: result.playing,
+        trackLength: realSongTime/1000.0,
+        startTimeISO: (result.playing ? startTimeDate.toISOString() : null),
+        startTimestamp: (result.playing ? startTimeDate.valueOf()/1000.0 : null),
+        pauseTrackTime: (!result.playing ? (realSongTime - result.timeLeft)/1000.0 : null),
+        isMuted: result.muted,
+        volume: result.volume,
+      };
+      WSS.updateActivityData(JSON.stringify(currentWSSState));
+      log('Activity', 'Updated Websocket State');
+
+      if (!updateWSSOnly) {
+        await setActivity({
+          client,
+          albumId: result.albumId,
+          firstArtistId: result.firstArtistId,
+          timeLeft: result.timeLeft,
+          app,
+          ...currentTrack,
+          type: result.mediaType,
+          songTime: realSongTime
+        }).then(() => log('Activity', 'Updated RPC'));
+      }
     }
     currentTrack.songTime = realSongTime;
     currentTrack.trackTitle = result.trackName;
@@ -270,6 +314,11 @@ interface CurrentTrack {
   radioCover: string,
 }
 
+interface CurrentSettings {
+  muted: boolean,
+  volume: number,
+}
+
 interface JSResult {
   songTime: number,
   timeLeft: number,
@@ -283,5 +332,7 @@ interface JSResult {
   isLivestreamRadio: boolean,
   mediaType: string,
   trackId: string,
-  firstArtistId: string;
+  firstArtistId: string,
+  muted: boolean,
+  volume: number,
 }

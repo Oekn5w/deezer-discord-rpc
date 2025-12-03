@@ -2,6 +2,7 @@ import { join } from 'path';
 import updater from './Updater';
 import * as Config from './Config';
 import * as RPC from './RPC';
+import * as WSS from './WSS';
 import { Menu, Tray } from 'electron';
 import { version } from '../../package.json';
 import { log } from './Log';
@@ -44,6 +45,24 @@ export async function init(app: Electron.App, client: import('@xhayper/discord-r
         })))
       },
       {
+        label: 'Websocket Server', type: 'submenu', submenu: Menu.buildFromTemplate([
+          {
+            label: 'Run Websocket Server', type: 'checkbox', toolTip: 'Start/Stop Websocket Server on port 16890', checked: await Config.get<boolean>(app, 'websocket_enabled', false),
+            click: (menuItem) => {
+              Config.set(app, 'websocket_enabled', menuItem.checked);
+              WSS.updateState();
+            }
+          },
+          {
+            label: 'Localhost only', type: 'checkbox', toolTip: 'Allow only connections from this PC via localhost', checked: await Config.get<boolean>(app, 'websocket_localhost_only', true),
+            click: (menuItem) => {
+              Config.set(app, 'websocket_localhost_only', menuItem.checked);
+              WSS.updateState();
+            }
+          }
+        ])
+      },
+      {
         label: 'Don\'t close to tray', type: 'checkbox', checked: await Config.get(app, 'dont_close_to_tray'),
         click: (menuItem) => Config.set(app, 'dont_close_to_tray', menuItem.checked)
       },
@@ -64,6 +83,7 @@ export async function init(app: Electron.App, client: import('@xhayper/discord-r
       {
         label: 'Quit', type: 'normal', click: async () => {
           RPC.disconnect().catch(console.error);
+          WSS.stop();
           win.close();
           app.quit();
           process.exit(0);
