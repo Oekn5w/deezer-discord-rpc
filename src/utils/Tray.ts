@@ -1,5 +1,4 @@
 import { join } from 'path';
-import updater from './Updater';
 import * as Config from './Config';
 import * as RPC from './RPC';
 import * as WSS from './WSS';
@@ -18,7 +17,7 @@ export async function init(app: Electron.App, client: import('@xhayper/discord-r
     const contextMenu = Menu.buildFromTemplate([
       { label: 'Deezer Discord RPC', type: 'normal', click: () => win.show() },
       { label: `Version: ${version}${process.argv0.includes('node') ? ' (debug)' : ''}`, type: 'normal', enabled: false },
-      { label: 'Check for updates', type: 'normal', click: () => updater() },
+      { label: 'Check for updates', type: 'normal', enabled: false },
       { type: 'separator' },
       {
         label: 'Status name', type: 'submenu', submenu: await Promise.all([

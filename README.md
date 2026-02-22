@@ -15,7 +15,6 @@
 * Shows the song title, the song artist(s), the album name and cover, and the song duration
 * Add links to the song, the artist and the album, on the RPC
 * Shows a "Listen on Deezer" button that opens the song on Deezer, if supported. **You cannot see this button on your own profile due to Discord restrictions.**
-* Includes an in-app updater
 * Hides the activity if no song is playing
 * Includes an ad-blocker, so it can block Deezer ads, Google Analytics, Sentry requests...
 * Supports songs, radios, personal songs (MP3s), podcasts

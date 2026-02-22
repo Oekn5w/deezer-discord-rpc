@@ -1,7 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { log } from './utils/Log';
 import * as Tray from './utils/Tray';
-import updater from './utils/Updater';
 import * as RPC from './utils/RPC';
 import * as WSS from './utils/WSS';
 import * as Window from './utils/Window';
@@ -24,7 +23,6 @@ app.whenReady().then(async () => {
 
   await Tray.init(app, RPC.client);
   await Window.load(app);
-  await updater(true);
 
   WSS.init(app);
   RPC.connect();
