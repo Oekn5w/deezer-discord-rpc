@@ -15,7 +15,7 @@ Commands changing the state of the player don't return a message themselves. Exp
 | `command/nextSong` | Next song
 | `command/toggleMute` | Toggle mute
 | `command/incVolume` | Increase volume by 5%
-| `command/decVolume` | Descrease volume by 5%
+| `command/decVolume` | Decrease volume by 5%
 
 
 ### Querying commands
@@ -30,6 +30,7 @@ The status message is a JSON encoded string of the current state. It looks like 
 {
     "trackId": "<numeric-id>", // but is passed as string
     "trackTitle": "<name>",
+    "trackTitleAbbrev": "<name>", // everything in parentheses is removed
     "trackArtists": "<artistname>",
     "albumCover": "<link-to-256x256-cover>",
     "albumTitle": "<albumname>",

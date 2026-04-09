@@ -278,6 +278,7 @@ async function updateActivity(app: Electron.App, currentTimeChanged?: boolean) {
       const currentWSSState = {
         trackId: result.trackId,
         trackTitle: result.trackName,
+        trackTitleAbbrev: result.trackName.replace(/\s*\([^\)]*\)\s*/g,''), // remove everything in parentheses
         trackArtists: result.playerType === 'mod' && !result.artists ? 'Unknown' : result.artists || result.playerType.replace(result.playerType[0], result.playerType[0].toUpperCase()),
         albumCover: result.coverUrl,
         albumTitle: result.albumName || result.trackName,
